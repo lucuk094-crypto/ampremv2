@@ -89,8 +89,13 @@ npm run build && npm run start
 
 ## Menyiapkan email (Resend)
 
-> 📘 Panduan lengkap langkah demi langkah (termasuk cara membuat API key, verifikasi domain,
-> dan solusi tiap pesan error): **[`docs/PANDUAN-RESEND.md`](docs/PANDUAN-RESEND.md)**
+> 📘 **Panduan utama (dari nol sampai email benar-benar terkirim + semua fitur siap pakai):
+> [`docs/PANDUAN-EMAIL-LENGKAP.md`](docs/PANDUAN-EMAIL-LENGKAP.md)**
+>
+> 📗 Panduan Resend khusus (detail dashboard & template): [`docs/PANDUAN-RESEND.md`](docs/PANDUAN-RESEND.md)
+>
+> 🔍 Cek kesehatan hasil deploy sekali jalan:
+> `sh scripts/cek-email.sh https://domainmu.vercel.app ADMIN_KEY emailkamu@gmail.com`
 
 ### Langkah
 
