@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Terminal, type LogLine, type LogKind } from './Terminal';
 import { CopyButton } from './ui';
+import { Inbox } from './Inbox';
 import { Icon } from './icons';
 import { PLAN_LIST, type Plan, type PlanId } from '@/lib/plans';
 
@@ -15,8 +16,9 @@ type SendResult = {
   emailMasked?: string;
   planName?: string;
   expiresIn?: number;
-  delivery?: 'email' | 'outbox';
+  delivery?: 'email' | 'outbox' | 'inbox';
   mailConfigured?: boolean;
+  inboxAddress?: string;
   magicLink?: string;
 };
 
@@ -55,6 +57,8 @@ export function ActivationWizard() {
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
+  const [inboxAddress, setInboxAddress] = useState<string | null>(null);
+  const [mode, setMode] = useState<'email' | 'inbox'>('inbox');
 
   const timer = useRef<ReturnType<typeof setInterval>>();
 
@@ -97,13 +101,17 @@ export function ActivationWizard() {
   const handleSend = async () => {
     setError(null);
     const addr = email.trim().toLowerCase();
-    if (!addr) return setError('Email wajib diisi.');
-    if (!EMAIL_RE.test(addr)) return setError('Format email tidak valid.');
+    if (mode === 'email') {
+      if (!addr) return setError('Email wajib diisi.');
+      if (!EMAIL_RE.test(addr)) return setError('Format email tidak valid.');
+    } else if (!inboxAddress) {
+      return setError('Buat alamat kotak masuk dulu di panel kanan.');
+    }
 
     setBusy('send');
     setSend(null);
     setResult(null);
-    log('step', `STEP 01 — meminta magic link untuk ${addr}`);
+    log('step', mode === 'inbox' ? `STEP 01 — meminta magic link ke kotak masuk internal` : `STEP 01 — meminta magic link untuk ${addr}`);
     log('wait', 'POST /api/send-link …');
 
     const t0 = performance.now();
@@ -111,7 +119,9 @@ export function ActivationWizard() {
       const res = await fetch('/api/send-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: addr, plan }),
+        body: JSON.stringify(
+          mode === 'inbox' ? { plan, delivery: 'inbox' } : { email: addr, plan }
+        ),
         signal: AbortSignal.timeout(20_000),
       });
       const data: SendResult = await res.json();
@@ -136,6 +146,12 @@ export function ActivationWizard() {
       const cookieValue = sess ? decodeURIComponent(sess) : (data.requestId ?? '');
       setCookie(cookieValue);
 
+      if (data.delivery === 'inbox') {
+        log('ok', 'Notifikasi tersimpan di kotak masuk internal — buka panel Kotak Masuk.');
+        if (data.emailMasked) setEmail(data.emailMasked);
+        setStep(2);
+        return;
+      }
       if (data.delivery === 'email') {
         log('ok', 'Email terkirim — buka inbox, salin seluruh URL magic link.');
       } else if (data.magicLink) {
@@ -360,32 +376,76 @@ export function ActivationWizard() {
             {/* STEP 1 */}
             {step === 1 && (
               <div className="animate-riseIn">
-                <label htmlFor="email" className="label">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Icon.mail className="h-3.5 w-3.5" /> Alamat email tujuan *
-                  </span>
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder="kamu@domain.com"
-                  className="field text-base sm:text-sm"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !busy && handleSend()}
-                  disabled={busy !== null}
-                  aria-describedby="email-help"
-                />
-                <p id="email-help" className="mt-2 font-mono text-[10px] uppercase tracking-wider text-ink/50">
-                  Magic link berlaku 15 menit · maks. 8 permintaan/jam
-                </p>
+                {/* pemilih mode */}
+                <div className="mb-4 grid grid-cols-2 gap-[3px] border-[3px] border-ink bg-ink">
+                  {(
+                    [
+                      { id: 'inbox' as const, label: 'KOTAK MASUK', note: 'tanpa email asli' },
+                      { id: 'email' as const, label: 'EMAIL ASLI', note: 'kirim ke inbox' },
+                    ]
+                  ).map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => {
+                        setMode(m.id);
+                        setError(null);
+                        log('info', m.id === 'inbox' ? 'Mode kotak masuk internal dipilih.' : 'Mode email asli dipilih.');
+                      }}
+                      disabled={busy !== null}
+                      aria-pressed={mode === m.id}
+                      className={`px-2 py-2 text-left ${mode === m.id ? 'bg-lime' : 'bg-white hover:bg-paper'}`}
+                    >
+                      <span className="block font-mono text-[10px] font-black uppercase tracking-widest">
+                        {m.label}
+                      </span>
+                      <span className="block font-mono text-[9px] uppercase tracking-wider text-ink/50">{m.note}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {mode === 'email' ? (
+                  <>
+                    <label htmlFor="email" className="label">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Icon.mail className="h-3.5 w-3.5" /> Alamat email tujuan *
+                      </span>
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      placeholder="kamu@domain.com"
+                      className="field text-base sm:text-sm"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && !busy && handleSend()}
+                      disabled={busy !== null}
+                      aria-describedby="email-help"
+                    />
+                    <p id="email-help" className="mt-2 font-mono text-[10px] uppercase tracking-wider text-ink/50">
+                      Magic link berlaku 15 menit · maks. 8 permintaan/jam
+                    </p>
+                  </>
+                ) : (
+                  <div className="border-[3px] border-ink bg-lime-soft px-3 py-2.5">
+                    <p className="font-mono text-[9px] font-black uppercase tracking-widest text-ink/50">
+                      alamat kotak masuk
+                    </p>
+                    <p className="mt-1 break-all font-mono text-[11px] font-bold">
+                      {inboxAddress ?? 'belum dibuat — buat di panel Kotak Masuk'}
+                    </p>
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-ink/65">
+                      Notifikasi aktivasi muncul di kotak masuk dalam web. Tidak perlu email pribadi.
+                    </p>
+                  </div>
+                )}
 
                 <button
                   type="button"
                   onClick={handleSend}
-                  disabled={busy !== null}
+                  disabled={busy !== null || (mode === 'inbox' && !inboxAddress)}
                   className="btn-lime mt-4 w-full py-4 text-sm sm:text-base"
                 >
                   {busy === 'send' ? (
@@ -587,6 +647,15 @@ export function ActivationWizard() {
 
         {/* ───────── KANAN: terminal + summary ───────── */}
         <div className="flex flex-col gap-5">
+          <Inbox
+            address={inboxAddress}
+            onAddress={setInboxAddress}
+            onUseLink={(link) => {
+              setMagicLink(link);
+              setStep(2);
+              log('ok', 'Link dari kotak masuk ditempel ke Langkah 02.');
+            }}
+          />
           <Terminal lines={logs} busy={busy !== null} onClear={clearLogs} />
 
           <div className="brutal bg-ink p-4 text-paper">

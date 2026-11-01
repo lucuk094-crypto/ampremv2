@@ -26,7 +26,7 @@
 
 | Langkah | Endpoint | Yang terjadi |
 |---|---|---|
-| **01 Kirim Link** | `POST /api/send-link` | Email divalidasi, token HMAC 15 menit ditandatangani, cookie sesi `amp_sess` diset, magic link dikirim via Resend **atau** dikembalikan (outbox) |
+| **01 Kirim Link** | `POST /api/send-link` | Token HMAC 15 menit ditandatangani, cookie sesi `amp_sess` diset, lalu link dikirim via Resend, **atau** masuk ke **kotak masuk internal**, **atau** dikembalikan (outbox) |
 | **02 Verifikasi** | `POST /api/verify-link` | `email` + `cookie` + `magicLink` + `customOrderId` dikirim. Tanda tangan diperiksa, email harus cocok, token sekali pakai |
 | **03 Lisensi** | — | `licenseKey`, `orderId`, `checksum`, `expiresAt` terbit dan tampil di UI |
 | Cek mandiri | `GET /api/license?key=` | Verifikasi kunci/order kapan saja |
@@ -35,6 +35,7 @@
 | Cabut | `POST /api/license` `{key, action:'revoke'}` | Mencabut lisensi (butuh `x-admin-key`) |
 | Invoice | `GET /api/invoice?key=\|order=` | PDF A4 (`&inline=1` untuk pratinjau di tab) |
 | Generator | `POST /api/generate` | Terbitkan 1–5 lisensi sekaligus (admin) |
+| Kotak masuk | `GET\|POST /api/inbox` | Alamat internal + daftar notifikasi (per cookie) |
 | Email test | `GET\|POST /api/mail-test` | Diagnostik Resend + kirim email uji (admin) |
 | Pratinjau email | `GET /api/mail-preview` | HTML template magic link |
 
@@ -151,6 +152,37 @@ Alternatif: `?order=AM-YYYYMMDD-XXXXXX`. Tambahkan `&inline=1` untuk membuka di 
 - Isi: nomor invoice, strip status, kunci lisensi, rincian (plan, pemilik, diterbitkan, kadaluarsa, sisa hari, checksum), blok total, catatan verifikasi, footer.
 - Halaman `/invoice` menampilkan pratinjau HTML-nya lebih dulu; tombol **UNDUH PDF** dan **PRATINJAU DI TAB BARU** mengarah ke endpoint ini.
 - Tautan invoice otomatis dipasang di Langkah 03 konsol dan di hasil **Cek Lisensi**.
+
+---
+
+## Kotak masuk internal
+
+Pengguna tidak perlu memasukkan email pribadi. Sistem membuat alamat internal seperti
+`AMP-C9UR-9XU9@premid.internal`, lalu notifikasi aktivasi muncul di panel **Kotak Masuk** dalam web.
+
+**Cara kerja**
+
+1. Klik **+ BUAT ALAMAT KOTAK MASUK** → server membuat alamat acak dan cookie `amp_inbox` (bertanda tangan HMAC, `httpOnly`).
+2. Klik **Kirim Magic Link** → `POST /api/send-link` dengan `delivery: 'inbox'` → notifikasi disimpan, **tidak ada email keluar**.
+3. Panel kotak masuk menampilkan pesan (polling 4 detik), lengkap dengan hitungan berlaku link.
+4. Klik **PAKAI LINK INI** → link otomatis terisi di Langkah 02.
+5. Verifikasi → lisensi terbit.
+
+**Keamanan**
+
+- Alamat hanya bisa dibaca oleh pemilik cookie `amp_inbox` yang sah; tanpa cookie → `address: null, messages: []`.
+- Setiap alamat punya kotak terpisah — pembeli lain tidak bisa melihat isinya.
+- `delivery: 'inbox'` tanpa cookie ditolak `409 NO_INBOX`.
+- Alamat & pesan kedaluwarsa **24 jam** (maks. 20 pesan).
+- Alamat memakai `@premid.internal` — **bukan domain yang bisa menerima email**, sehingga tidak mungkin disalahgunakan untuk menerima surat dari luar.
+
+**Kapan pakai yang mana**
+
+| Mode | Kapan |
+|---|---|
+| **Kotak masuk internal** | Demo, distribusi cepat, pembeli tanpa email |
+| **Email asli (Resend)** | Produksi — pembeli menerima email sungguhan |
+| **Outbox** | Tanpa `RESEND_API_KEY` — link ditampilkan langsung di UI |
 
 ---
 

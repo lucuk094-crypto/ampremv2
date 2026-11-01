@@ -4,6 +4,13 @@ import { signToken, newRequestId, maskEmail, isSecretConfigured } from '@/lib/au
 import { planOf } from '@/lib/plans';
 import { sendMagicLink, mailConfigured } from '@/lib/mailer';
 import { rateLimit, rateHeaders, clientIp, ipHash } from '@/lib/ratelimit';
+import {
+  INBOX_COOKIE,
+  addressFromCookie,
+  addMessage,
+  newMessageId,
+  INBOX_DOMAIN,
+} from '@/lib/inbox';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,14 +42,34 @@ export async function POST(req: Request) {
     return fail('Body harus JSON yang valid.', 400);
   }
 
-  const email = String(body.email ?? '').trim().toLowerCase();
   const plan = planOf(body.plan);
 
-  if (!email) return fail('Email wajib diisi.');
+  // ── Mode kotak masuk internal: alamat dibuat sistem, hanya pemilik cookie ──
+  const cookieHeader = req.headers.get('cookie') || '';
+  const inboxCookie = cookieHeader
+    .split(';')
+    .map((c) => c.trim())
+    .find((c) => c.startsWith(`${INBOX_COOKIE}=`))
+    ?.slice(INBOX_COOKIE.length + 1);
+  const inboxAddress = addressFromCookie(inboxCookie ? decodeURIComponent(inboxCookie) : undefined);
+  const useInbox = Boolean(inboxAddress) || body.delivery === 'inbox';
+  const email = useInbox && inboxAddress ? inboxAddress.toLowerCase() : String(body.email ?? '').trim().toLowerCase();
+
+  if (!email) {
+    if (body.delivery === 'inbox') {
+      return fail('Kotak masuk internal belum dibuat. Klik "Buat alamat" lebih dulu.', 409, { reason: 'NO_INBOX' });
+    }
+    return fail('Email wajib diisi.');
+  }
+  if (useInbox && !inboxAddress) {
+    return fail('Kotak masuk internal belum dibuat. Klik "Buat alamat" lebih dulu.', 409, { reason: 'NO_INBOX' });
+  }
   if (email.length > 160) return fail('Email terlalu panjang.');
-  if (!EMAIL_RE.test(email)) return fail('Email tidak valid.');
-  if (email.endsWith('@example.com') || email.endsWith('@test.com')) {
-    return fail('Domain email uji tidak diizinkan. Gunakan email aktif.');
+  if (!useInbox) {
+    if (!EMAIL_RE.test(email)) return fail('Email tidak valid.');
+    if (email.endsWith('@example.com') || email.endsWith('@test.com')) {
+      return fail('Domain email uji tidak diizinkan. Gunakan email aktif.');
+    }
   }
 
   const ip = clientIp(req);
@@ -78,6 +105,39 @@ export async function POST(req: Request) {
     { requestId, emailMasked: masked, plan: plan.id, issuedAt },
     TOKEN_TTL
   );
+
+  if (useInbox) {
+    // Notifikasi disimpan ke kotak masuk internal — tidak ada email keluar.
+    await addMessage(email, {
+      id: newMessageId(),
+      to: email,
+      from: `AM Prem.ID <no-reply@${INBOX_DOMAIN}>`,
+      subject: `Magic link aktivasi ${plan.name} — AM Prem.ID`,
+      plan: plan.id,
+      planName: plan.name,
+      preview: 'Klik tombol AKTIFKAN SEKARANG untuk menyelesaikan aktivasi.',
+      receivedAt: issuedAt,
+      expiresAt: issuedAt + TOKEN_TTL * 1000,
+      token,
+      magicLink,
+    });
+
+    return NextResponse.json({
+      success: true,
+      ok: true,
+      step: 1,
+      message: `Notifikasi dikirim ke kotak masuk ${email} — buka tab Kotak Masuk untuk mengambil link.`,
+      requestId,
+      emailMasked: email,
+      plan: plan.id,
+      planName: plan.name,
+      expiresIn: TOKEN_TTL,
+      delivery: 'inbox',
+      inboxAddress: email,
+      secretConfigured: isSecretConfigured(),
+      issuedAt,
+    });
+  }
 
   const mail = await sendMagicLink({
     to: email,

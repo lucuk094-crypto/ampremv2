@@ -47,7 +47,9 @@ export async function POST(req: Request) {
 
   // ── Urutan validasi dipertahankan seperti sistem lama ──
   if (!email) return fail('Email wajib diisi.');
-  if (!EMAIL_RE.test(email)) return fail('Email tidak valid.');
+  // alamat kotak masuk internal (@premid.internal) diizinkan apa adanya
+  const isInternal = email.endsWith('@premid.internal');
+  if (!isInternal && !EMAIL_RE.test(email)) return fail('Email tidak valid.');
   if (!magicLink) return fail('Link dari email wajib diisi.');
   if (!cookieInput) return fail('Cookie wajib diisi.');
 
