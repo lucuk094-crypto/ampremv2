@@ -230,6 +230,8 @@ Mengubahnya: konstanta `LIMIT_PER_*` di `app/api/send-link/route.ts` dan `app/ap
 
 ## Deploy ke Vercel
 
+> 🚀 Nilai environment yang sudah dibuatkan + langkah deploy: **[`docs/DEPLOY-VERCEL.md`](docs/DEPLOY-VERCEL.md)**
+
 **Via GitHub**
 
 1. Push folder ini ke repository.
