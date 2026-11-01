@@ -158,3 +158,18 @@ Untuk mengirim email ke user, domain sendiri **wajib**. Tidak ada jalan lain —
 ---
 
 © 2026 AM Prem.ID — **Van313 | Official**
+
+---
+
+## Auto-push ke GitHub
+
+Repo: `github.com/lucuk094-crypto/ampremv2`
+
+```bash
+GH_TOKEN=<token-kamu> sh scripts/autopush.sh
+GH_TOKEN=<token-kamu> sh scripts/autopush.sh "feat: tambah fitur X"
+```
+
+- Token **tidak** disimpan di repo — dibaca dari environment saat dijalankan.
+- `.env`, `.env.local`, `.env.*.local` selalu di-reset keluar dari staging, jadi tidak mungkin ikut terkirim.
+- Jika tidak ada perubahan, script berhenti tanpa commit kosong.
