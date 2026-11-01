@@ -66,6 +66,9 @@ npm run build && npm run start
 
 ## Variabel environment
 
+> 📘 Cara mengisi tiap variabel langkah demi langkah (termasuk cara membuat `AUTH_SECRET`,
+> memasang di Vercel, dan solusi tiap error): **[`docs/PANDUAN-ENV.md`](docs/PANDUAN-ENV.md)**
+
 | Variabel | Wajib | Keterangan |
 |---|---|---|
 | `AUTH_SECRET` | **Ya** | Kunci HMAC penanda tangan. Tanpa ini dipakai secret dev yang tidak aman |
