@@ -31,13 +31,18 @@ git add -A
 git reset -q -- .env .env.local .env.*.local 2>/dev/null || true
 
 if git diff --cached --quiet; then
-  echo "• Tidak ada perubahan untuk di-push."
-  exit 0
+  # Tidak ada perubahan baru. Tetap cek apakah ada commit lokal yang belum terkirim.
+  if git rev-parse --verify "origin/$BRANCH" >/dev/null 2>&1 && \
+     [ "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$BRANCH")" ]; then
+    echo "• Tidak ada perubahan dan tidak ada commit tertunda."
+    exit 0
+  fi
+  echo "• Tidak ada perubahan baru — mengirim commit lokal yang tertunda."
+else
+  git -c user.name="${GIT_AUTHOR_NAME:-Van313}" \
+      -c user.email="${GIT_AUTHOR_EMAIL:-van313@users.noreply.github.com}" \
+      commit -q -m "$MSG"
 fi
-
-git -c user.name="${GIT_AUTHOR_NAME:-Van313}" \
-    -c user.email="${GIT_AUTHOR_EMAIL:-van313@users.noreply.github.com}" \
-    commit -q -m "$MSG"
 
 git -c credential.helper='!f() { echo "username=x-access-token"; echo "password=$GH_TOKEN"; }; f' \
     push origin "$BRANCH" 2>&1 | tail -3
