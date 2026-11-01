@@ -59,6 +59,7 @@ export function ActivationWizard() {
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [inboxAddress, setInboxAddress] = useState<string | null>(null);
   const [mode, setMode] = useState<'email' | 'inbox'>('inbox');
+  const [toast, setToast] = useState<{ id: string; subject: string; planName: string } | null>(null);
 
   const timer = useRef<ReturnType<typeof setInterval>>();
 
@@ -264,6 +265,35 @@ export function ActivationWizard() {
 
   return (
     <div id="toolkit" className="scroll-mt-24">
+      {/* toast notifikasi real-time */}
+      {toast && (
+        <div
+          className="animate-toastIn fixed inset-x-3 top-3 z-50 mx-auto max-w-md border-[3px] border-ink bg-lime px-3 py-2.5 shadow-brutal sm:left-auto sm:right-5 sm:top-5 sm:mx-0"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border-2 border-ink bg-white">
+              <Icon.mail className="h-3.5 w-3.5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-mono text-[10px] font-black uppercase tracking-widest">
+                pesan baru masuk
+              </p>
+              <p className="truncate font-mono text-[11px] font-bold">{toast.subject}</p>
+              <p className="font-mono text-[9px] uppercase tracking-wider text-ink/60">{toast.planName}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              aria-label="Tutup notifikasi"
+              className="shrink-0 border-2 border-ink bg-white px-1.5 py-0.5 font-mono text-[10px] font-black"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
       <div className="grid gap-5 lg:grid-cols-[1.15fr_.85fr] lg:gap-6">
         {/* ───────── KIRI: form ───────── */}
         <div className="brutal noise relative overflow-hidden bg-white">
@@ -650,6 +680,10 @@ export function ActivationWizard() {
           <Inbox
             address={inboxAddress}
             onAddress={setInboxAddress}
+            onNewMessage={(m) => {
+              setToast({ id: m.id, subject: m.subject, planName: m.planName });
+              window.setTimeout(() => setToast((cur) => (cur?.id === m.id ? null : cur)), 6000);
+            }}
             onUseLink={(link) => {
               setMagicLink(link);
               setStep(2);

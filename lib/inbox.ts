@@ -80,6 +80,31 @@ export async function inboxExists(address: string): Promise<boolean> {
   return Boolean(hit);
 }
 
+/** Versi pesan yang aman dikirim ke browser (token tidak pernah ikut). */
+export type PublicInboxMessage = {
+  id: string;
+  from: string;
+  subject: string;
+  planName: string;
+  preview: string;
+  receivedAt: number;
+  expiresAt: number;
+  magicLink: string;
+};
+
+export function publicMessage(m: InboxMessage): PublicInboxMessage {
+  return {
+    id: m.id,
+    from: m.from,
+    subject: m.subject,
+    planName: m.planName,
+    preview: m.preview,
+    receivedAt: m.receivedAt,
+    expiresAt: m.expiresAt,
+    magicLink: m.magicLink,
+  };
+}
+
 export function newMessageId(): string {
   return `msg_${crypto.randomBytes(6).toString('hex')}`;
 }

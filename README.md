@@ -36,6 +36,7 @@
 | Invoice | `GET /api/invoice?key=\|order=` | PDF A4 (`&inline=1` untuk pratinjau di tab) |
 | Generator | `POST /api/generate` | Terbitkan 1–5 lisensi sekaligus (admin) |
 | Kotak masuk | `GET\|POST /api/inbox` | Alamat internal + daftar notifikasi (per cookie) |
+| Stream kotak masuk | `GET /api/inbox/stream` | Server-Sent Events notifikasi real-time |
 | Email test | `GET\|POST /api/mail-test` | Diagnostik Resend + kirim email uji (admin) |
 | Pratinjau email | `GET /api/mail-preview` | HTML template magic link |
 
@@ -169,9 +170,26 @@ Pengguna tidak perlu memasukkan email pribadi. Sistem membuat alamat internal se
 
 1. Klik **+ BUAT ALAMAT KOTAK MASUK** → server membuat alamat acak dan cookie `amp_inbox` (bertanda tangan HMAC, `httpOnly`).
 2. Klik **Kirim Magic Link** → `POST /api/send-link` dengan `delivery: 'inbox'` → notifikasi disimpan, **tidak ada email keluar**.
-3. Panel kotak masuk menampilkan pesan (polling 4 detik), lengkap dengan hitungan berlaku link.
+3. Panel kotak masuk menampilkan pesan **real-time lewat SSE** (`/api/inbox/stream`), lengkap dengan hitungan berlaku link.
 4. Klik **PAKAI LINK INI** → link otomatis terisi di Langkah 02.
 5. Verifikasi → lisensi terbit.
+
+**Notifikasi real-time**
+
+| Komponen | Perilaku |
+|---|---|
+| Kanal | `GET /api/inbox/stream` — Server-Sent Events, server membandingkan isi kotak tiap **1,5 detik** dan hanya mengirim saat ada perubahan |
+| Event | `ready` · `inbox` (snapshot penuh) · `message` (per pesan baru) · ping keep-alive tiap 15 dtk |
+| Bunyi | Nada 3 not Web Audio (tanpa berkas audio), bisa dimatikan tombol **🔔 nada / 🔇 bisu** — pilihan tersimpan di perangkat |
+| Toast | Notifikasi melayang "PESAN BARU MASUK" di pojok, hilang otomatis 6 dtk |
+| Badge | Penghitung pesan belum dibaca di header panel |
+| Kedip | Baris pesan baru disorot kuning selama 2,4 dtk |
+| Cadangan | Bila SSE diblokir/gagal → otomatis beralih ke polling 4 dtk (status berubah jadi "mode cadangan") |
+| Batas | Koneksi ditutup server setelah 10 menit; `EventSource` menyambung ulang sendiri |
+| Nyalakan ulang | Klik **ganti** → koneksi dibuka lagi dengan cookie baru |
+
+Tanpa Upstash Redis, stream hanya membaca memori proses yang sama. **Untuk produksi di Vercel,
+isi `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`** agar pesan terlihat oleh instance mana pun.
 
 **Keamanan**
 
