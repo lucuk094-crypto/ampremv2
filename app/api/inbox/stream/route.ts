@@ -7,13 +7,15 @@ import {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+/** Vercel Hobby memutus fungsi di 60 dtk; beri ruang agar tertutup rapi lebih dulu. */
+export const maxDuration = 60;
 
 /** Jeda antar-polling server saat membandingkan isi kotak masuk. */
 const TICK_MS = 1500;
 /** Komentar keep-alive agar proxy/Vercel tidak memutus koneksi yang menganggur. */
 const HEARTBEAT_MS = 15_000;
-/** Batas keras: koneksi ditutup setelah 10 menit, browser akan menyambung ulang. */
-const MAX_STREAM_MS = 10 * 60 * 1000;
+/** Ditutup rapi sebelum batas platform (60 dtk); EventSource menyambung ulang sendiri. */
+const MAX_STREAM_MS = 50 * 1000;
 
 function cookieValue(req: Request, name: string): string | undefined {
   const raw = req.headers.get('cookie') || '';

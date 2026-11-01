@@ -253,7 +253,9 @@ Mengubahnya: konstanta `LIMIT_PER_*` di `app/api/send-link/route.ts` dan `app/ap
 
 ## Deploy ke Vercel
 
-> 🚀 Nilai environment yang sudah dibuatkan + langkah deploy: **[`docs/DEPLOY-VERCEL.md`](docs/DEPLOY-VERCEL.md)**
+> 🚀 **Mulai dari sini — runbook deploy satu halaman (10 menit, termasuk verifikasi): [`docs/RUNBOOK-DEPLOY.md`](docs/RUNBOOK-DEPLOY.md)**
+>
+> 📋 Nilai environment lengkap + catatan rotasi: **[`docs/DEPLOY-VERCEL.md`](docs/DEPLOY-VERCEL.md)**
 
 **Via GitHub**
 
